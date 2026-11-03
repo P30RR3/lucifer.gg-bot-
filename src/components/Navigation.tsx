@@ -106,15 +106,32 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
-          {/* Discord Gateway Live Status Indicator */}
+      {/* Botón Discord Login / Perfil */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#18080d] border border-[#d4af37]/35 shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-cinzel text-white text-[11px] hidden sm:inline">Bot Oficial</span>
-              <span className="text-[10px] uppercase tracking-wider text-[#d4af37] font-mono">En Línea</span>
-            </div>
+            {currentMember?.id && currentMember.id !== 'user-001' ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#18080d] border border-[#d4af37]/40 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="font-cinzel text-white">{currentMember.username}</span>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('lucifer_session');
+                    window.location.reload();
+                  }}
+                  title="Cerrar Sesión"
+                  className="text-stone-400 hover:text-red-400 ml-1 text-[11px]"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <a
+                href="https://lucifer-gg-bot.onrender.com/api/auth/login"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-md transition-colors"
+              >
+                <span>Conectar Discord</span>
+              </a>
+            )}
           </div>
-        </div>
 
         {/* Mobile Navigation Bar */}
         <div className="flex lg:hidden overflow-x-auto py-2 space-x-1 border-t border-[#3b0008]/40 no-scrollbar">

@@ -228,6 +228,46 @@ export default function App() {
     }
   };
 
+// 🔴 DETECTOR DE SESIÓN DISCORD OAUTH2
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authData = params.get('auth_data');
+
+    if (authData) {
+      try {
+        const decoded = JSON.parse(atob(authData));
+        setCurrentMember((prev) => ({
+          ...prev,
+          id: decoded.id,
+          username: decoded.username,
+          rank: decoded.isStaff ? '🔱 Soberano Canciller (Staff)' : 'Ciudadano Soberano',
+          isStaff: decoded.isStaff,
+        }));
+        // Guardar sesión en el navegador para que no se cierre al recargar
+        localStorage.setItem('lucifer_session', authData);
+        // Limpiar la URL para que se vea bonita
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) {
+        console.error('Error al decodificar sesión:', e);
+      }
+    } else {
+      // Si ya había iniciado sesión antes
+      const savedSession = localStorage.getItem('lucifer_session');
+      if (savedSession) {
+        try {
+          const decoded = JSON.parse(atob(savedSession));
+          setCurrentMember((prev) => ({
+            ...prev,
+            id: decoded.id,
+            username: decoded.username,
+            rank: decoded.isStaff ? '🔱 Soberano Canciller (Staff)' : 'Ciudadano Soberano',
+            isStaff: decoded.isStaff,
+          }));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
 

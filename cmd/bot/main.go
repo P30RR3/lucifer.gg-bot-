@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -388,8 +391,8 @@ func run() error {
 		}()
 	}
 
-	// 14. Servidor HTTP de Health Check (Para K8s/Docker)
-	health := startHealthServer(cfg.Health, session, store, cacheClient, engine, logger)
+	// 14. Servidor HTTP de Health Check y OAuth2 Dashboard
+	health := startHealthServer(cfg, session, store, cacheClient, engine, logger)
 	logger.Info("🍸 El Lux está listo para recibir visitas", "startup_duration", time.Since(start).String())
 
 	// Esperar señal de apagado
@@ -533,7 +536,7 @@ func initializeDependencies(ctx context.Context, cfg *config.Config, logger *slo
 	return store, cacheClient, nil
 }
 
-// --- HEALTH SERVER ---
+// --- HEALTH & OAUTH2 SERVER ---
 
 type healthServer struct {
 	server *http.Server
@@ -547,7 +550,7 @@ func (h *healthServer) Shutdown(ctx context.Context) error {
 }
 
 func startHealthServer(
-	cfg config.HealthConfig,
+	cfg *config.Config,
 	session *discordgo.Session,
 	store *storage.Store,
 	cacheClient *cache.Client,
@@ -556,6 +559,7 @@ func startHealthServer(
 ) *healthServer {
 	mux := http.NewServeMux()
 
+	// 1. Health check básico
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -566,6 +570,7 @@ func startHealthServer(
 		})
 	})
 
+	// 2. Health check de dependencias
 	mux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
@@ -607,15 +612,134 @@ func startHealthServer(
 		})
 	})
 
+	// 🔴 3. DISCORD OAUTH2: LOGIN (Redirige al portal de Discord)
+	mux.HandleFunc("/api/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		clientID := os.Getenv("DISCORD_CLIENT_ID")
+		if clientID == "" && cfg != nil {
+			clientID = cfg.Discord.AppID
+		}
+		redirectURI := "https://lucifer-gg-bot.onrender.com/api/auth/callback"
+		discordAuthURL := fmt.Sprintf(
+			"https://discord.com/oauth2/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=identify",
+			clientID,
+			url.QueryEscape(redirectURI),
+		)
+		http.Redirect(w, r, discordAuthURL, http.StatusTemporaryRedirect)
+	})
+
+	// 🔴 4. DISCORD OAUTH2: CALLBACK (Verifica permisos y devuelve al dashboard)
+	mux.HandleFunc("/api/auth/callback", func(w http.ResponseWriter, r *http.Request) {
+		code := r.URL.Query().Get("code")
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "https://lucifer-gg-bot-1.onrender.com"
+		}
+
+		if code == "" {
+			http.Redirect(w, r, frontendURL+"?error=access_denied", http.StatusTemporaryRedirect)
+			return
+		}
+
+		clientID := os.Getenv("DISCORD_CLIENT_ID")
+		if clientID == "" && cfg != nil {
+			clientID = cfg.Discord.AppID
+		}
+
+		// A. Canjear código por Access Token
+		data := url.Values{}
+		data.Set("client_id", clientID)
+		data.Set("client_secret", os.Getenv("DISCORD_CLIENT_SECRET"))
+		data.Set("grant_type", "authorization_code")
+		data.Set("code", code)
+		data.Set("redirect_uri", "https://lucifer-gg-bot.onrender.com/api/auth/callback")
+
+		tokenReq, _ := http.NewRequest("POST", "https://discord.com/api/oauth2/token", strings.NewReader(data.Encode()))
+		tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		httpClient := &http.Client{Timeout: 10 * time.Second}
+		tokenResp, err := httpClient.Do(tokenReq)
+		if err != nil || tokenResp.StatusCode != http.StatusOK {
+			logger.Error("error canjeando token oauth2", "err", err)
+			http.Redirect(w, r, frontendURL+"?error=token_failed", http.StatusTemporaryRedirect)
+			return
+		}
+		defer tokenResp.Body.Close()
+
+		var tokenData struct {
+			AccessToken string `json:"access_token"`
+		}
+		if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil || tokenData.AccessToken == "" {
+			http.Redirect(w, r, frontendURL+"?error=invalid_token", http.StatusTemporaryRedirect)
+			return
+		}
+
+		// B. Obtener usuario @me
+		userReq, _ := http.NewRequest("GET", "https://discord.com/api/users/@me", nil)
+		userReq.Header.Set("Authorization", "Bearer "+tokenData.AccessToken)
+		userResp, err := httpClient.Do(userReq)
+		if err != nil || userResp.StatusCode != http.StatusOK {
+			logger.Error("error obteniendo usuario discord @me", "err", err)
+			http.Redirect(w, r, frontendURL+"?error=user_failed", http.StatusTemporaryRedirect)
+			return
+		}
+		defer userResp.Body.Close()
+
+		var dUser struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+			Avatar   string `json:"avatar"`
+		}
+		if err := json.NewDecoder(userResp.Body).Decode(&dUser); err != nil {
+			http.Redirect(w, r, frontendURL+"?error=decode_user_failed", http.StatusTemporaryRedirect)
+			return
+		}
+
+		// C. VERIFICACIÓN DE AUTORIDAD (Owner o Staff con permisos de Admin / Ban)
+		guildID := "1289371089201987654"
+		isStaff := false
+
+		if session != nil {
+			// Si es el bot owner en config
+			if cfg != nil && cfg.Discord.BotOwnerID != "" && dUser.ID == cfg.Discord.BotOwnerID {
+				isStaff = true
+			} else if guild, gErr := session.Guild(guildID); gErr == nil && guild != nil && guild.OwnerID == dUser.ID {
+				// Si es el dueño del servidor
+				isStaff = true
+			} else if member, mErr := session.GuildMember(guildID, dUser.ID); mErr == nil && member != nil {
+				// Revisar roles con permisos de Administrador o Banear
+				for _, roleID := range member.Roles {
+					if role, rErr := session.State.Role(guildID, roleID); rErr == nil && role != nil {
+						if role.Permissions&discordgo.PermissionAdministrator != 0 || role.Permissions&discordgo.PermissionBanMembers != 0 {
+							isStaff = true
+							break
+						}
+					}
+				}
+			}
+		}
+
+		// D. Empaquetar y redirigir al Dashboard
+		payload := map[string]any{
+			"id":       dUser.ID,
+			"username": dUser.Username,
+			"avatar":   fmt.Sprintf("https://cdn.discordapp.com/avatars/%s/%s.png", dUser.ID, dUser.Avatar),
+			"isStaff":  isStaff,
+		}
+		payloadJSON, _ := json.Marshal(payload)
+		encoded := base64.URLEncoding.EncodeToString(payloadJSON)
+
+		http.Redirect(w, r, fmt.Sprintf("%s/?auth_data=%s", frontendURL, encoded), http.StatusTemporaryRedirect)
+	})
+
 	server := &http.Server{
-		Addr:         cfg.Addr,
+		Addr:         cfg.Health.Addr,
 		Handler:      mux,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  cfg.Health.ReadTimeout,
+		WriteTimeout: cfg.Health.WriteTimeout,
 	}
 
 	go func() {
-		logger.Info("🏥 Servicio de bienestar y salud del Lux activo", "addr", cfg.Addr)
+		logger.Info("🏥 Servicio de bienestar y salud del Lux activo", "addr", cfg.Health.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("❌ Health server error", "err", err)
 		}
