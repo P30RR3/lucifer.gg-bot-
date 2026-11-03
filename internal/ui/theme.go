@@ -117,7 +117,68 @@ func (t *Theme) BrandEmbed(embed *discordgo.MessageEmbed) {
 	}
 }
 
-// FormatErrorMessage returns a clean PLAIN TEXT message (NO EMBED) as explicitly requested
+// ==========================================
+// 🔴 EMBEDS QUE PEDÍA EL BOT
+// ==========================================
+
+func (t *Theme) ErrorEmbed(args ...string) *discordgo.MessageEmbed {
+	title := "Acción Interrumpida"
+	desc := ""
+	if len(args) == 1 {
+		desc = args[0]
+	} else if len(args) >= 2 {
+		title = args[0]
+		desc = args[1]
+	}
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: desc,
+		Color:       t.ColorDanger,
+	}
+	t.BrandEmbed(embed)
+	return embed
+}
+
+func (t *Theme) SuccessEmbed(args ...string) *discordgo.MessageEmbed {
+	title := "Operación Concluida"
+	desc := ""
+	if len(args) == 1 {
+		desc = args[0]
+	} else if len(args) >= 2 {
+		title = args[0]
+		desc = args[1]
+	}
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: desc,
+		Color:       t.ColorSuccess,
+	}
+	t.BrandEmbed(embed)
+	return embed
+}
+
+func (t *Theme) WarningEmbed(args ...string) *discordgo.MessageEmbed {
+	title := "Advertencia de Protocolo"
+	desc := ""
+	if len(args) == 1 {
+		desc = args[0]
+	} else if len(args) >= 2 {
+		title = args[0]
+		desc = args[1]
+	}
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: desc,
+		Color:       t.ColorWarning,
+	}
+	t.BrandEmbed(embed)
+	return embed
+}
+
+// ==========================================
+// FORMATOS DE TEXTO PLANO
+// ==========================================
+
 func FormatErrorMessage(title, desc string) string {
 	if desc == "" {
 		desc = title
@@ -126,7 +187,6 @@ func FormatErrorMessage(title, desc string) string {
 	return "⚠️ **" + title + "**\n> " + desc + "\n*Por favor, verifique su solicitud o acuda a la cancillería de asistencia.*"
 }
 
-// ErrorMessage generates charismatic plain text error without embed
 func (t *Theme) ErrorMessage(args ...string) string {
 	title := "Acción Interrumpida"
 	desc := ""
@@ -139,7 +199,6 @@ func (t *Theme) ErrorMessage(args ...string) string {
 	return FormatErrorMessage(title, desc)
 }
 
-// WarningMessage generates plain text warning without embed
 func (t *Theme) WarningMessage(args ...string) string {
 	title := "Advertencia de Protocolo"
 	desc := ""
@@ -152,7 +211,6 @@ func (t *Theme) WarningMessage(args ...string) string {
 	return "⚠️ **" + title + "**\n> " + desc
 }
 
-// SuccessMessage generates plain text success confirmation
 func (t *Theme) SuccessMessage(args ...string) string {
 	title := "Operación Concluida"
 	desc := ""
