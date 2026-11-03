@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS lux_ranks;
+DROP TABLE IF EXISTS lux_shop_items;
+DROP TABLE IF EXISTS infernal_cases;
+DROP TABLE IF EXISTS investigation_responses;
+DROP TABLE IF EXISTS investigation_evidence;
+DROP TABLE IF EXISTS deep_confession_offers;
+DROP TABLE IF EXISTS deep_confessions;
+DROP TABLE IF EXISTS trial_cases;
+DROP TABLE IF EXISTS help_thread_staff_replies;
+DROP TABLE IF EXISTS help_threads;
+DROP TABLE IF EXISTS community_feature_settings;

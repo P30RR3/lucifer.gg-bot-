@@ -1,0 +1,54 @@
+# Binarios
+bin/
+dist/
+*.exe
+krypton
+krypton-*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Entorno
+.env
+.env.*
+!.env.example
+secrets/
+configs/.env
+
+# Documentación
+README.md
+LICENSE
+CONTRIBUTING.md
+docs/
+
+# Tests
+coverage.out
+coverage.html
+*.test
+testdata/
+
+# Build artifacts
+tmp/
+build/
+*.log
+
+# Docker
+docker-compose.override.yml
+Dockerfile*
+.dockerignore
+
+# Tooling
+.golangci.yml
+.air.toml
+Makefile
+scripts/
+
+# Mocks
+mocks/

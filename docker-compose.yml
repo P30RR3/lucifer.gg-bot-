@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────
+#  Krypton — Stack de desarrollo local
+#  Levanta: PostgreSQL, Redis, bot Krypton
+# ─────────────────────────────────────────────────────────────
+name: krypton
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: krypton-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: krypton
+      POSTGRES_PASSWORD: krypton
+      POSTGRES_DB: krypton
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - krypton-pgdata:/var/lib/postgresql/data
+      - ./internal/storage/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krypton -d krypton"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - krypton-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: krypton-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - krypton-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - krypton-net
+
+  bot:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile
+      args:
+        VERSION: local
+        COMMIT: dev
+    container_name: krypton-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      KRYPTON_ENV: development
+      POSTGRES_DSN: postgres://krypton:krypton@postgres:5432/krypton?sslmode=disable
+      REDIS_ADDR: redis:6379
+      POSTGRES_RUN_MIGRATIONS: "true"
+      LOG_FORMAT: text
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - krypton-net
+
+volumes:
+  krypton-pgdata:
+  krypton-redisdata:
+
+networks:
+  krypton-net:
+    driver: bridge

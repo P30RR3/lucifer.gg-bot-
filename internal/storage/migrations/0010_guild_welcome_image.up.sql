@@ -1,0 +1,2 @@
+ALTER TABLE guilds
+    ADD COLUMN IF NOT EXISTS welcome_image_url TEXT NOT NULL DEFAULT '';

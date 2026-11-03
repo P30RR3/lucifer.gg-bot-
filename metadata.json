@@ -1,0 +1,8 @@
+{
+  "name": "Lucifer.gg Bot & Lux Dashboard",
+  "description": "Premium Lucifer Morningstar Discord bot control panel, featuring anti-raid security center, moderation, soul economy, audit logging, and AI consultations.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

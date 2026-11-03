@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────
+#  Krypton — .gitignore
+# ─────────────────────────────────────────────────────────────
+
+# Binarios compilados
+/krypton
+/krypton.exe
+/krypton-*
+/cmd/bot/bot
+/cmd/bot/bot.exe
+/dist/
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Cobertura
+coverage.txt
+coverage.html
+coverage.out
+*.coverprofile
+
+# Go
+vendor/
+go.work
+go.work.sum
+*.prof
+*.pprof
+
+# Entorno y secretos
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+configs/.env
+configs/*.local.yaml
+secrets/
+*.pem
+*.key
+*.crt
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.zed/
+
+# Logs
+*.log
+logs/
+tmp/
+temp/
+
+# Docker
+docker-compose.override.yml
+
+# Air (hot reload)
+.tmp/
+build-errors.log
+
+# Bases de datos locales
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Test artifacts
+testdata/output/
+*.snap
+
+# Generados
+mocks/
+*.gen.go
+!zz_generated.*.go
