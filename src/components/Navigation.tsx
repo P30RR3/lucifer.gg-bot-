@@ -8,7 +8,7 @@ import {
   Activity,
   Scroll,
 } from 'lucide-react';
-import { PresenceState } from '../types.ts';
+import { PresenceState, Member } from '../types.ts';
 
 interface NavigationProps {
   activeTab: string;
@@ -17,6 +17,7 @@ interface NavigationProps {
   presence?: PresenceState;
   onAdvancePresence?: () => void;
   isStaff?: boolean;
+  currentMember?: Member;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -25,9 +26,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   isLockdown,
   presence,
   isStaff = false,
+  currentMember,
 }) => {
-  
-  // Pestañas filtradas: solo staff ve las de moderación y auditoría
   const allTabs = [
     { id: 'overview', label: 'Protocolo • Estado', icon: Activity, staffOnly: true },
     { id: 'antiraid', label: 'Escudo Antiraid', icon: ShieldAlert, badge: isLockdown ? 'BLOQUEO' : undefined, staffOnly: true },
@@ -38,8 +38,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'audit', label: 'Libro Mayor', icon: Scroll, staffOnly: true },
   ];
 
-  const tabs = allTabs.filter(tab => !tab.staffOnly || isStaff);
-
+  const tabs = allTabs.filter((tab) => !tab.staffOnly || isStaff);
   const currentActivity = presence?.currentActivity;
 
   return (
@@ -66,7 +65,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
           </div>
 
-          {/* Dynamic Live Sovereign Presence Pill (Solo informativo, sin botón de cambiarlo) */}
+          {/* Dynamic Live Sovereign Presence Pill */}
           {currentActivity && (
             <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-[#18080d] border border-[#d4af37]/35 shadow-inner text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -106,19 +105,19 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
-      {/* Botón Discord Login / Perfil */}
+          {/* Discord Login Button / Perfil Conectado */}
           <div className="flex items-center gap-2">
             {currentMember?.id && currentMember.id !== 'user-001' ? (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#18080d] border border-[#d4af37]/40 text-xs">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#18080d] border border-[#d4af37]/40 text-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span className="font-cinzel text-white">{currentMember.username}</span>
+                <span className="font-cinzel text-white text-[11px] font-semibold">{currentMember.username}</span>
                 <button
                   onClick={() => {
                     localStorage.removeItem('lucifer_session');
                     window.location.reload();
                   }}
                   title="Cerrar Sesión"
-                  className="text-stone-400 hover:text-red-400 ml-1 text-[11px]"
+                  className="text-stone-400 hover:text-red-400 ml-1 text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -126,12 +125,13 @@ export const Navigation: React.FC<NavigationProps> = ({
             ) : (
               <a
                 href="https://lucifer-gg-bot.onrender.com/api/auth/login"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-md transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-md transition-colors"
               >
                 <span>Conectar Discord</span>
               </a>
             )}
           </div>
+        </div>
 
         {/* Mobile Navigation Bar */}
         <div className="flex lg:hidden overflow-x-auto py-2 space-x-1 border-t border-[#3b0008]/40 no-scrollbar">
